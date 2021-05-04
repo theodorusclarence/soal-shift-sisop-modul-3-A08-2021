@@ -8,7 +8,10 @@ Icon?
 
 soal1/Client/client
 soal1/Server/server
+soal1/Server/akun.txt
 soal2/soal2a
 soal2/soal2b
 soal2/soal2c
 soal3/soal3
+
+.vscode/
