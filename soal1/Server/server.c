@@ -298,6 +298,54 @@ void handleSecondPhase(int sock, char *id, char *password) {
     send_file(fp, sock);
     printf("[+]File data sent successfully.\n");
   }
+
+  if (strcmp(buffer, "find") == 0) {
+    // Get the filename
+    char fileNameToFind[120] = {0};
+    valread = read(sock, fileNameToFind, 1024);
+    printf("🚀%s\n", fileNameToFind);
+
+    FILE *fp;
+    fp = fopen("files.tsv", "r+");
+
+    char data[1024] = {0};
+    char publisher[100], tahunPublikasi[100], filename[100];
+
+    char fullData[100000];
+
+    while (fgets(data, 1024, fp) != NULL) {
+      sscanf(data, "%[^\t]\t%s\t%s", publisher, tahunPublikasi, filename);
+      char line1[200], line2[200], line3[200], line4[200], line5[200];
+      sprintf(line2, "Publisher: %s\n", publisher);
+      sprintf(line3, "Tahun publishing: %s\n", tahunPublikasi);
+      sprintf(line5, "Filepath : %s\n", filename);
+
+      char *ext = strrchr(filename, '.');
+      char *extension = ext + 1;
+      sprintf(line4, "Ekstensi File : %s\n", extension);
+
+      char fullPathWithoutExt[100];
+      strcpy(fullPathWithoutExt, filename);
+      char cleanName[100];
+      fullPathWithoutExt[strlen(fullPathWithoutExt) - strlen(ext)] = '\0';
+      sscanf(fullPathWithoutExt, "FILES/%s", cleanName);
+      sprintf(line1, "Nama: %s\n", cleanName);
+
+      if (strstr(cleanName, fileNameToFind) != 0) {
+        strcat(fullData, line1);
+        strcat(fullData, line2);
+        strcat(fullData, line3);
+        strcat(fullData, line4);
+        strcat(fullData, line5);
+        strcat(fullData, "\n");
+      }
+    }
+    if (strlen(fullData) == 0) {
+      send(sock, "😢 no file found", strlen("😢 no file found"), 0);
+    } else {
+      send(sock, fullData, strlen(fullData), 0);
+    }
+  }
   // Infinite Looping for now
   handleSecondPhase(sock, id, password);
 }

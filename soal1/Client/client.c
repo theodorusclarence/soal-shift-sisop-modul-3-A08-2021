@@ -13,6 +13,7 @@ void promptAdd(int sock);
 void promptDownload(int sock);
 void promptDelete(int sock);
 void promptSee(int sock);
+void promptFind(int sock);
 void printLogRegMsg(int id);
 void send_file(FILE *fp, int sockfd);
 void write_file(int sockfd, char *filename);
@@ -135,6 +136,10 @@ void promptChoice(int sock) {
     promptSee(sock);
   }
 
+  if (strcmp(choice, "find") == 0) {
+    promptFind(sock);
+  }
+
   // Prompt again
   promptChoice(sock);
 }
@@ -200,7 +205,25 @@ void promptSee(int sock) {
   char buffer[100000] = {0};
   int valread;
   valread = read(sock, buffer, 1024);
-  printf("🚀 %s\n", buffer);
+  // Print result
+  printf("%s\n", buffer);
+}
+
+void promptFind(int sock) {
+  send(sock, "find", strlen("find"), 0);
+
+  char filename[100];
+  scanf("%s", filename);
+
+  // avoid send being merged
+  sleep(1);
+  send(sock, filename, strlen(filename), 0);
+
+  char buffer[100000] = {0};
+  int valread;
+  valread = read(sock, buffer, 1024);
+  // Print result
+  printf("%s\n", buffer);
 }
 
 void send_file(FILE *fp, int sockfd) {
