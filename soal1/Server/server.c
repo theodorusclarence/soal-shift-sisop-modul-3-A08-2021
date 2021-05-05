@@ -1,11 +1,19 @@
 
 #include <netinet/in.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #define PORT 8080
+
+int connection = 0;
+int id_socket[50];
+
+void *handleLogReg(void *args);
 
 int main(int argc, char const *argv[]) {
   int server_fd, new_socket, valread;
@@ -44,78 +52,94 @@ int main(int argc, char const *argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
-                           (socklen_t *)&addrlen)) < 0) {
-    perror("accept");
-    exit(EXIT_FAILURE);
-  }
-
-  int cumulative = 5;
+  pthread_t tid[50];
 
   while (1) {
-    char buffer[1024] = {0};
-    valread = read(new_socket, buffer, 1024);
-    printf("%s\n", buffer);
-
-    // TODO REMOVE TEMPORARY STOP
-    if (strcmp(buffer, "stop") == 0) {
-      char *message = "Shutting down..\n";
-      send(new_socket, message, strlen(message), 0);
-      break;
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address,
+                             (socklen_t *)&addrlen)) < 0) {
+      perror("accept");
+      exit(EXIT_FAILURE);
     }
+    id_socket[connection] = new_socket;
+    if (connection > 0) {
+      send(id_socket[connection], "wait", strlen("wait"), 1024);
+    } else {
+      send(id_socket[connection], "go", strlen("go"), 1024);
 
-    if (strcmp(buffer, "login") == 0 || strcmp(buffer, "register") == 0) {
-      char id[1024] = {0};
-      valread = read(new_socket, id, 1024);
-      char password[1024] = {0};
-      valread = read(new_socket, password, 1024);
-
-      printf("id: %s, password: %s\n", id, password);
-
-      // if register then write the id and username to the akun.txt
-      if (strcmp(buffer, "register") == 0) {
-        FILE *f;
-        f = fopen("akun.txt", "a+");
-        fprintf(f, "%s:%s\n", id, password);
-
-        char authMessage[100];
-        sprintf(authMessage, "Register Success");
-        send(new_socket, authMessage, strlen(authMessage), 0);
-
-        fclose(f);
-      }
-
-      if (strcmp(buffer, "login") == 0) {
-        FILE *f;
-        f = fopen("akun.txt", "a+");
-        char buffer[1024] = "";
-        int isValid = 0;
-        // While masih ada yang bisa diread, dan selagi masih belom valid (belom
-        // nemu yang id pw sama)
-        while (fgets(buffer, 1024, f) != NULL && !isValid) {
-          char compare_id[1025], compare_pw[1025];
-
-          // tokenize with ':' as a delimiter
-          char *token = strtok(buffer, ":");
-          strcpy(compare_id, token);
-
-          // get next token until it meets '\n'
-          token = strtok(NULL, "\n");
-          strcpy(compare_pw, token);
-
-          if (strcmp(compare_id, id) == 0 &&
-              strcmp(compare_pw, password) == 0) {
-            isValid = 1;
-          }
-        }
-
-        char authMessage[500];
-        sprintf(authMessage, "validity: %d\n", isValid);
-        send(new_socket, authMessage, strlen(authMessage), 0);
-        fclose(f);
-      }
+      pthread_create(&tid[connection], NULL, handleLogReg, &new_socket);
     }
+    connection++;
   }
 
   return 0;
+}
+
+void *handleLogReg(void *args) {
+  int new_socket = *(int *)args;
+  int valread;
+
+  char buffer[1024] = {0};
+  valread = read(new_socket, buffer, 1024);
+  printf("%s\n", buffer);
+
+  // TODO REMOVE TEMPORARY STOP
+  if (strcmp(buffer, "stop") == 0) {
+    char *message = "Shutting down..\n";
+    send(new_socket, message, strlen(message), 0);
+    pthread_cancel(pthread_self());
+  }
+
+  if (strcmp(buffer, "login") == 0 || strcmp(buffer, "register") == 0) {
+    char id[1024] = {0};
+    valread = read(new_socket, id, 1024);
+    char password[1024] = {0};
+    valread = read(new_socket, password, 1024);
+
+    printf("id: %s, password: %s\n", id, password);
+
+    // if register then write the id and username to the akun.txt
+    if (strcmp(buffer, "register") == 0) {
+      FILE *f;
+      f = fopen("akun.txt", "a+");
+      fprintf(f, "%s:%s\n", id, password);
+
+      char authMessage[100];
+      sprintf(authMessage, "Register Success");
+      send(new_socket, authMessage, strlen(authMessage), 0);
+
+      fclose(f);
+    }
+
+    if (strcmp(buffer, "login") == 0) {
+      FILE *f;
+      f = fopen("akun.txt", "a+");
+      char buffer[1024] = "";
+      int isValid = 0;
+      // While masih ada yang bisa diread, dan selagi masih belom valid (belom
+      // nemu yang id pw sama)
+      while (fgets(buffer, 1024, f) != NULL && !isValid) {
+        char compare_id[1025], compare_pw[1025];
+
+        // tokenize with ':' as a delimiter
+        char *token = strtok(buffer, ":");
+        strcpy(compare_id, token);
+
+        // get next token until it meets '\n'
+        token = strtok(NULL, "\n");
+        strcpy(compare_pw, token);
+
+        if (strcmp(compare_id, id) == 0 && strcmp(compare_pw, password) == 0) {
+          isValid = 1;
+        }
+      }
+
+      char authMessage[500];
+      sprintf(authMessage, "%d\n", isValid);
+      send(new_socket, authMessage, strlen(authMessage), 0);
+      fclose(f);
+    }
+  } else {
+    handleLogReg(&new_socket);
+    pthread_cancel(pthread_self());
+  }
 }
