@@ -268,7 +268,7 @@ void handleSecondPhase(int sock, char *id, char *password) {
       char fullPathWithoutExt[100];
       strcpy(fullPathWithoutExt, filename);
       char cleanName[100];
-      fullPathWithoutExt[strlen(fullPathWithoutExt) - strlen(".txt")] = '\0';
+      fullPathWithoutExt[strlen(fullPathWithoutExt) - strlen(ext)] = '\0';
       sscanf(fullPathWithoutExt, "FILES/%s", cleanName);
       sprintf(line1, "Nama: %s\n", cleanName);
 
