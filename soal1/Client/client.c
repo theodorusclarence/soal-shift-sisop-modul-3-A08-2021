@@ -112,7 +112,9 @@ void promptLogReg(int sock) {
 
 void promptChoice(int sock) {
   char choice[120], id[100], pass[100];
-  printf("\n=====\nChoose between add or delete\n> ");
+  printf(
+      "\n=====\nChoose between [add, download, delete, see, find]\n* use full "
+      "path for filepath in add\n> ");
   scanf("%s", choice);
   // TODO REMOVE TEMPORARY STOP
   if (strcmp(choice, "stop") == 0) {

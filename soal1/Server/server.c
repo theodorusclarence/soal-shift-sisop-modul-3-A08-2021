@@ -116,6 +116,8 @@ void *handleLogReg(void *args) {
       send(new_socket, authMessage, strlen(authMessage), 0);
 
       fclose(f);
+
+      handleLogReg(&new_socket);
     }
 
     if (strcmp(buffer, "login") == 0) {
