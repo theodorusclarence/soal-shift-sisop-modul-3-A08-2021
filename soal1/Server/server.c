@@ -195,7 +195,58 @@ void handleSecondPhase(int sock, char *id, char *password) {
     write_file(sock, filename);
     printf("[+]Data written in the file successfully.\n");
   } else if (strcmp(buffer, "delete") == 0) {
+    // Get the filename
+    char deleteFileName[120] = {0};
+    valread = read(sock, deleteFileName, 1024);
+    printf("🚀%s\n", deleteFileName);
+
+    // TODO 1. Delete from the tsv file
+    FILE *fp, *fp2;
+    fp = fopen("files.tsv", "r+");
+    fp2 = fopen("temp.tsv", "w");
+
+    char data[1024] = {0};
+    char publisher[100], tahunPublikasi[100], filename[100];
+
+    while (fgets(data, 1024, fp) != NULL) {
+      // Read data from files.tsv
+      sscanf(data, "%[^\t]\t%s\t%s", publisher, tahunPublikasi, filename);
+
+      // FILES/ get cut off
+      char *filenameWithoutFolder = filename + 6;
+
+      if (strcmp(filenameWithoutFolder, deleteFileName) != 0) {
+        // Copy if not the data that want to be deleted
+        fprintf(fp2, "%s", data);
+      }
+
+      bzero(data, 1024);
+    }
+    fclose(fp);
+    fclose(fp2);
+    remove("files.tsv");
+    rename("temp.tsv", "files.tsv");
+
+    // TODO 2. Add to running log
+    fp = fopen("running.log", "a+");
+
+    // FILES/ get cut off
+    fprintf(fp, "Hapus: %s (%s:%s)\n", deleteFileName, id, password);
+    fclose(fp);
+
+    // TODO 3. Change the real filename to old-
+    // FILES/satu.txt
+    char fullPathFileName[200];
+    sprintf(fullPathFileName, "FILES/%s", deleteFileName);
+    // FILES/satu.txt
+    char deletedPathFileName[200];
+    sprintf(deletedPathFileName, "FILES/old-%s", deleteFileName);
+
+    rename(fullPathFileName, deletedPathFileName);
   }
+
+  // Infinite Looping for now
+  handleSecondPhase(sock, id, password);
 }
 
 // Ask for file path first

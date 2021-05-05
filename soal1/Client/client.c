@@ -10,6 +10,7 @@
 void promptLogReg(int sock);
 void promptChoice(int sock);
 void promptAdd(int sock);
+void promptDelete(int sock);
 void printLogRegMsg(int id);
 void send_file(FILE *fp, int sockfd);
 
@@ -121,8 +122,13 @@ void promptChoice(int sock) {
     return;
   }
 
-  printf("🚀 code to add or delete or else here\n");
-  promptAdd(sock);
+  if (strcmp(choice, "add") == 0) {
+    promptAdd(sock);
+  }
+
+  if (strcmp(choice, "delete") == 0) {
+    promptDelete(sock);
+  }
 
   // Prompt again
   promptChoice(sock);
@@ -155,6 +161,17 @@ void promptAdd(int sock) {
   sleep(1);
   send_file(fp, sock);
   printf("[+]File data sent successfully.\n");
+}
+
+void promptDelete(int sock) {
+  send(sock, "delete", strlen("delete"), 0);
+
+  char filename[100];
+  scanf("%s", filename);
+
+  // avoid send being merged
+  sleep(1);
+  send(sock, filename, strlen(filename), 0);
 }
 
 void send_file(FILE *fp, int sockfd) {
