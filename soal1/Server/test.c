@@ -7,29 +7,12 @@
 #include <unistd.h>
 
 int main() {
-  printf("hi\n");
-  FILE *f;
-  f = fopen("akun.txt", "a+");
+  FILE *fp;
+  fp = fopen("FILES/akun.txt", "r");
 
-  char buffer[1024];
-  int isValid = 0;
-  while (fgets(buffer, 1024, f) != NULL && !isValid) {
-    char username[100], password[100];
+  char data[1024] = {0};
 
-    // tokenize with ':' as a delimiter
-    char *token = strtok(buffer, ":");
-    strcpy(username, token);
-
-    // get next token until it meets '\n'
-    token = strtok(NULL, "\n");
-    strcpy(password, token);
-    printf("--%s\n", username);
-    printf("--%s\n", password);
-
-    if (strcmp(username, "clarence") == 0 || strcmp(password, "bambang") == 0) {
-      isValid = 1;
-    }
+  while (fgets(data, 1024, fp) != NULL) {
+    printf("%s", data);
   }
-
-  printf("valid: %d\n", isValid);
 }

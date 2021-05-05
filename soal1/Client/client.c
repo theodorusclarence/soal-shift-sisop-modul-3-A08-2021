@@ -9,6 +9,9 @@
 
 void promptLogReg(int sock);
 void promptChoice(int sock);
+void promptAdd(int sock);
+void printLogRegMsg(int id);
+void send_file(FILE *fp, int sockfd);
 
 int main(int argc, char const *argv[]) {
   struct sockaddr_in address;
@@ -72,6 +75,7 @@ void promptLogReg(int sock) {
   // Send choice to server
   send(sock, choice, strlen(choice), 0);
 
+  // Input for login notice
   printf("Id : ");
   getchar();
   scanf("%[^\n]s", id);
@@ -81,9 +85,23 @@ void promptLogReg(int sock) {
   scanf("%[^\n]s", pass);
   send(sock, pass, strlen(pass), 0);
 
-  printf("%s\n", id);
-  printf("%s\n", pass);
+  // AFTER SENDING ID AND PASSWORD, CHECK IF 1 THEN SUCCESSFULL
+  printf("🚀 reading for login reg message \n");
+  char logRegMsg[1024] = {0};
+  int valread;
+  valread = read(sock, logRegMsg, 1024);
+  printf("🚀 %s\n", logRegMsg);
+  if (strcmp(logRegMsg, "1") == 0) {
+    printf("Login Successful 🥳\n");
+  } else if (strcmp(logRegMsg, "2") == 0) {
+    printf("Register Successful 🥳, you can now login\n");
+    promptLogReg(sock);
+  } else {
+    printf("Login Failed 💔\n");
+    promptLogReg(sock);
+  }
 
+  // Move to choices
   promptChoice(sock);
 }
 
@@ -104,7 +122,53 @@ void promptChoice(int sock) {
   }
 
   printf("🚀 code to add or delete or else here\n");
+  promptAdd(sock);
 
   // Prompt again
   promptChoice(sock);
+}
+
+void promptAdd(int sock) {
+  send(sock, "add", strlen("add"), 0);
+
+  char publisher[100], tahunPublikasi[100], filename[100];
+  printf("Publisher: ");
+  getchar();
+  scanf("%[^\n]s", publisher);
+  send(sock, publisher, strlen(publisher), 0);
+  printf("Tahun Publikasi: ");
+  getchar();
+  scanf("%[^\n]s", tahunPublikasi);
+  send(sock, tahunPublikasi, strlen(tahunPublikasi), 0);
+  printf("Filepath: ");
+  getchar();
+  scanf("%[^\n]s", filename);
+  send(sock, filename, strlen(filename), 0);
+  sleep(1);
+
+  FILE *fp = fopen(filename, "r");
+  if (fp == NULL) {
+    perror("[-]Error in reading file.");
+    exit(1);
+  }
+
+  sleep(1);
+  send_file(fp, sock);
+  printf("[+]File data sent successfully.\n");
+}
+
+void send_file(FILE *fp, int sockfd) {
+  int n;
+  char data[1024] = {0};
+
+  while (fgets(data, 1024, fp) != NULL) {
+    if (send(sockfd, data, sizeof(data), 0) == -1) {
+      perror("[-]Error in sending file.");
+      exit(1);
+    }
+    bzero(data, 1024);
+  }
+
+  // mark last with ending
+  send(sockfd, "stop signal", sizeof("stop signal"), 0);
 }

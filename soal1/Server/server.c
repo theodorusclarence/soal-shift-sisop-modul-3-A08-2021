@@ -5,17 +5,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #define PORT 8080
+#define SIZE 1024
 
 int connection = 0;
 int id_socket[50];
 
 void *handleLogReg(void *args);
+void handleSecondPhase(int sock, char *id, char *password);
+void write_file(int sockfd, char *filename);
 
 int main(int argc, char const *argv[]) {
+  // CREATE FILES FOLDER
+  mkdir("FILES", 0777);
+
   int server_fd, new_socket, valread;
   struct sockaddr_in address;
   int opt = 1;
@@ -104,7 +111,7 @@ void *handleLogReg(void *args) {
       fprintf(f, "%s:%s\n", id, password);
 
       char authMessage[100];
-      sprintf(authMessage, "Register Success");
+      sprintf(authMessage, "2");
       send(new_socket, authMessage, strlen(authMessage), 0);
 
       fclose(f);
@@ -134,12 +141,88 @@ void *handleLogReg(void *args) {
       }
 
       char authMessage[500];
-      sprintf(authMessage, "%d\n", isValid);
+      sprintf(authMessage, "%d", isValid);
       send(new_socket, authMessage, strlen(authMessage), 0);
       fclose(f);
+
+      if (isValid) {
+        handleSecondPhase(new_socket, id, password);
+      } else {
+        handleLogReg(&new_socket);
+      }
     }
   } else {
     handleLogReg(&new_socket);
     pthread_cancel(pthread_self());
   }
+}
+
+void handleSecondPhase(int sock, char *id, char *password) {
+  // WAITING FOR MENU
+  int valread;
+  char buffer[1024] = {0};
+  valread = read(sock, buffer, 1024);
+  printf("%s\n", buffer);
+
+  if (strcmp(buffer, "add") == 0) {
+    printf("masuk add\n");
+    printf("%s:%s\n", id, password);
+
+    // Valread file name dll
+    char publikasi[120] = {0};
+    valread = read(sock, publikasi, 1024);
+    char tahunPublikasi[120] = {0};
+    valread = read(sock, tahunPublikasi, 1024);
+    char filename[120] = {0};
+    valread = read(sock, filename, 1024);
+    printf("👌: %s\n", publikasi);
+    printf("👌: %s\n", tahunPublikasi);
+    printf("👌: %s\n", filename);
+
+    // Write to files.tsv
+    FILE *fp;
+    fp = fopen("files.tsv", "a+");
+    fprintf(fp, "%s\t%s\t%s\n", publikasi, tahunPublikasi, filename);
+    fclose(fp);
+
+    // Write to running.log
+    fp = fopen("running.log", "a+");
+    // FILES/ get cut off
+    char *filenameWithoutFolder = filename + 6;
+    fprintf(fp, "Tambah: %s (%s:%s)\n", filenameWithoutFolder, id, password);
+    fclose(fp);
+
+    write_file(sock, filename);
+    printf("[+]Data written in the file successfully.\n");
+  } else if (strcmp(buffer, "delete") == 0) {
+  }
+}
+
+// Ask for file path first
+void write_file(int sockfd, char *filename) {
+  int n;
+  FILE *fp;
+  char buffer[SIZE];
+
+  printf("😅 %s\n", filename);
+
+  fp = fopen(filename, "w");
+  bzero(buffer, SIZE);
+  while (1) {
+    printf("🚀 waiting for receiving file\n");
+    n = recv(sockfd, buffer, SIZE, 0);
+
+    // Kalo yang ngirim bukan dari send_file (karena dari function send_file
+    // pasti 1024)
+    if (n != 1024) {
+      break;
+      return;
+    }
+
+    // masukkin ke filenya
+    fprintf(fp, "%s", buffer);
+    bzero(buffer, SIZE);
+  }
+  fclose(fp);
+  return;
 }
