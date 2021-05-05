@@ -11,6 +11,7 @@ void promptLogReg(int sock);
 void promptChoice(int sock);
 void promptAdd(int sock);
 void promptDelete(int sock);
+void promptSee(int sock);
 void printLogRegMsg(int id);
 void send_file(FILE *fp, int sockfd);
 
@@ -116,18 +117,16 @@ void promptChoice(int sock) {
     exit(0);
   }
 
-  // if wrong, then restart the prompt.
-  if (!strcmp(choice, "add") == 0 && !strcmp(choice, "delete") == 0) {
-    promptChoice(sock);
-    return;
-  }
-
   if (strcmp(choice, "add") == 0) {
     promptAdd(sock);
   }
 
   if (strcmp(choice, "delete") == 0) {
     promptDelete(sock);
+  }
+
+  if (strcmp(choice, "see") == 0) {
+    promptSee(sock);
   }
 
   // Prompt again
@@ -172,6 +171,14 @@ void promptDelete(int sock) {
   // avoid send being merged
   sleep(1);
   send(sock, filename, strlen(filename), 0);
+}
+
+void promptSee(int sock) {
+  send(sock, "see", strlen("see"), 0);
+  char buffer[100000] = {0};
+  int valread;
+  valread = read(sock, buffer, 1024);
+  printf("🚀 %s\n", buffer);
 }
 
 void send_file(FILE *fp, int sockfd) {

@@ -194,7 +194,8 @@ void handleSecondPhase(int sock, char *id, char *password) {
 
     write_file(sock, filename);
     printf("[+]Data written in the file successfully.\n");
-  } else if (strcmp(buffer, "delete") == 0) {
+  }
+  if (strcmp(buffer, "delete") == 0) {
     // Get the filename
     char deleteFileName[120] = {0};
     valread = read(sock, deleteFileName, 1024);
@@ -243,6 +244,43 @@ void handleSecondPhase(int sock, char *id, char *password) {
     sprintf(deletedPathFileName, "FILES/old-%s", deleteFileName);
 
     rename(fullPathFileName, deletedPathFileName);
+  }
+  if (strcmp(buffer, "see") == 0) {
+    FILE *fp;
+    fp = fopen("files.tsv", "r+");
+
+    char data[1024] = {0};
+    char publisher[100], tahunPublikasi[100], filename[100];
+
+    char fullData[100000];
+
+    while (fgets(data, 1024, fp) != NULL) {
+      sscanf(data, "%[^\t]\t%s\t%s", publisher, tahunPublikasi, filename);
+      char line1[200], line2[200], line3[200], line4[200], line5[200];
+      sprintf(line2, "Publisher: %s\n", publisher);
+      sprintf(line3, "Tahun publishing: %s\n", tahunPublikasi);
+      sprintf(line5, "Filepath : %s\n", filename);
+
+      char *ext = strrchr(filename, '.');
+      char *extension = ext + 1;
+      sprintf(line4, "Ekstensi File : %s\n", extension);
+
+      char fullPathWithoutExt[100];
+      strcpy(fullPathWithoutExt, filename);
+      char cleanName[100];
+      fullPathWithoutExt[strlen(fullPathWithoutExt) - strlen(".txt")] = '\0';
+      sscanf(fullPathWithoutExt, "FILES/%s", cleanName);
+      sprintf(line1, "Nama: %s\n", cleanName);
+
+      strcat(fullData, line1);
+      strcat(fullData, line2);
+      strcat(fullData, line3);
+      strcat(fullData, line4);
+      strcat(fullData, line5);
+      strcat(fullData, "\n");
+    }
+
+    send(sock, fullData, strlen(fullData), 0);
   }
 
   // Infinite Looping for now
