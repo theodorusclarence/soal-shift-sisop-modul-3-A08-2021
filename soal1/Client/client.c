@@ -10,10 +10,12 @@
 void promptLogReg(int sock);
 void promptChoice(int sock);
 void promptAdd(int sock);
+void promptDownload(int sock);
 void promptDelete(int sock);
 void promptSee(int sock);
 void printLogRegMsg(int id);
 void send_file(FILE *fp, int sockfd);
+void write_file(int sockfd, char *filename);
 
 int main(int argc, char const *argv[]) {
   struct sockaddr_in address;
@@ -121,6 +123,10 @@ void promptChoice(int sock) {
     promptAdd(sock);
   }
 
+  if (strcmp(choice, "download") == 0) {
+    promptDownload(sock);
+  }
+
   if (strcmp(choice, "delete") == 0) {
     promptDelete(sock);
   }
@@ -162,6 +168,22 @@ void promptAdd(int sock) {
   printf("[+]File data sent successfully.\n");
 }
 
+void promptDownload(int sock) {
+  send(sock, "download", strlen("download"), 0);
+
+  char filename[100];
+  scanf("%s", filename);
+
+  // avoid send being merged
+  sleep(1);
+  send(sock, filename, strlen(filename), 0);
+
+  char fullPathFileName[150];
+  sprintf(fullPathFileName, "FILES/%s", filename);
+
+  write_file(sock, fullPathFileName);
+}
+
 void promptDelete(int sock) {
   send(sock, "delete", strlen("delete"), 0);
 
@@ -195,4 +217,33 @@ void send_file(FILE *fp, int sockfd) {
 
   // mark last with ending
   send(sockfd, "stop signal", sizeof("stop signal"), 0);
+}
+
+// Ask for file path first
+void write_file(int sockfd, char *filename) {
+  int n;
+  FILE *fp;
+  char buffer[1024];
+
+  printf("😅 %s\n", filename);
+
+  fp = fopen(filename, "w");
+  bzero(buffer, 1024);
+  while (1) {
+    printf("🚀 waiting for receiving file\n");
+    n = recv(sockfd, buffer, 1024, 0);
+
+    // Kalo yang ngirim bukan dari send_file (karena dari function send_file
+    // pasti 1024)
+    if (n != 1024) {
+      break;
+      return;
+    }
+
+    // masukkin ke filenya
+    fprintf(fp, "%s", buffer);
+    bzero(buffer, 1024);
+  }
+  fclose(fp);
+  return;
 }

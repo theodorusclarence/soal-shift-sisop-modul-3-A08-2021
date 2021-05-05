@@ -18,6 +18,7 @@ int id_socket[50];
 void *handleLogReg(void *args);
 void handleSecondPhase(int sock, char *id, char *password);
 void write_file(int sockfd, char *filename);
+void send_file(FILE *fp, int sockfd);
 
 int main(int argc, char const *argv[]) {
   // CREATE FILES FOLDER
@@ -283,6 +284,20 @@ void handleSecondPhase(int sock, char *id, char *password) {
     send(sock, fullData, strlen(fullData), 0);
   }
 
+  if (strcmp(buffer, "download") == 0) {
+    // Get the filename
+    char downloadFileName[120] = {0};
+    valread = read(sock, downloadFileName, 1024);
+    printf("🚀%s\n", downloadFileName);
+
+    char fullPathFileName[150];
+    sprintf(fullPathFileName, "FILES/%s", downloadFileName);
+
+    sleep(1);
+    FILE *fp = fopen(fullPathFileName, "r");
+    send_file(fp, sock);
+    printf("[+]File data sent successfully.\n");
+  }
   // Infinite Looping for now
   handleSecondPhase(sock, id, password);
 }
@@ -314,4 +329,20 @@ void write_file(int sockfd, char *filename) {
   }
   fclose(fp);
   return;
+}
+
+void send_file(FILE *fp, int sockfd) {
+  int n;
+  char data[1024] = {0};
+
+  while (fgets(data, 1024, fp) != NULL) {
+    if (send(sockfd, data, sizeof(data), 0) == -1) {
+      perror("[-]Error in sending file.");
+      exit(1);
+    }
+    bzero(data, 1024);
+  }
+
+  // mark last with ending
+  send(sockfd, "stop signal", sizeof("stop signal"), 0);
 }
