@@ -13,10 +13,13 @@
 #define SIZE 1024
 
 int connection = 0;
-int id_socket[50];
+int currentConnection = 0;
+int queue = 0;
+int id_socket[1000];
 
 void *handleLogReg(void *args);
 void handleSecondPhase(int sock, char *id, char *password);
+void handleStopConnection(int sock);
 void write_file(int sockfd, char *filename);
 void send_file(FILE *fp, int sockfd);
 
@@ -68,15 +71,23 @@ int main(int argc, char const *argv[]) {
       perror("accept");
       exit(EXIT_FAILURE);
     }
-    id_socket[connection] = new_socket;
-    if (connection > 0) {
-      send(id_socket[connection], "wait", strlen("wait"), 1024);
-    } else {
-      send(id_socket[connection], "go", strlen("go"), 1024);
+    id_socket[currentConnection] = new_socket;
 
-      pthread_create(&tid[connection], NULL, handleLogReg, &new_socket);
+    if (connection > 0) {
+      printf("📩 sending wait signal to currentConnection: %d\n",
+             currentConnection);
+      send(id_socket[currentConnection], "wait", strlen("wait"), 1024);
+
+      pthread_create(&tid[currentConnection], NULL, handleLogReg, &new_socket);
+    } else {
+      printf("📩 sending go signal to currentConnection: %d\n",
+             currentConnection);
+      send(id_socket[currentConnection], "go", strlen("go"), 1024);
+
+      pthread_create(&tid[currentConnection], NULL, handleLogReg, &new_socket);
     }
     connection++;
+    currentConnection++;
   }
 
   return 0;
@@ -92,9 +103,8 @@ void *handleLogReg(void *args) {
 
   // TODO REMOVE TEMPORARY STOP
   if (strcmp(buffer, "stop") == 0) {
-    char *message = "Shutting down..\n";
-    send(new_socket, message, strlen(message), 0);
-    pthread_cancel(pthread_self());
+    printf("😱masuk sini\n");
+    handleStopConnection(new_socket);
   }
 
   if (strcmp(buffer, "login") == 0 || strcmp(buffer, "register") == 0) {
@@ -166,6 +176,12 @@ void handleSecondPhase(int sock, char *id, char *password) {
   char buffer[1024] = {0};
   valread = read(sock, buffer, 1024);
   printf("%s\n", buffer);
+
+  // TODO REMOVE TEMPORARY STOP
+  if (strcmp(buffer, "stop") == 0) {
+    printf("😱masuk sini\n");
+    handleStopConnection(sock);
+  }
 
   if (strcmp(buffer, "add") == 0) {
     printf("masuk add\n");
@@ -350,6 +366,31 @@ void handleSecondPhase(int sock, char *id, char *password) {
   }
   // Infinite Looping for now
   handleSecondPhase(sock, id, password);
+}
+
+void handleStopConnection(int sock) {
+  connection--;
+
+  // ambil connection sebelumnya
+  // currentConnection--;
+  // go to next connection in queue
+  queue++;
+  printf("🐮 connection:  %d\n", connection);
+  printf("🐮 currentConnection:  %d\n", currentConnection);
+  printf("🐮 queue:  %d\n", queue);
+
+  printf("🚥 sending signal to queue: %d is closed to next connectio\n", queue);
+  send(id_socket[queue], "go", strlen("go"), 1024);
+
+  // Reset count connection and use the available tid;
+  if (queue == currentConnection) {
+    queue = 0;
+    currentConnection = 0;
+    printf("🐮🕓 currentConnection:  %d\n", currentConnection);
+    printf("🐮🕓 queue:  %d\n", queue);
+  }
+
+  pthread_cancel(pthread_self());
 }
 
 // Ask for file path first
