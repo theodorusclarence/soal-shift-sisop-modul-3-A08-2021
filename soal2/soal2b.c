@@ -27,7 +27,6 @@ pthread_t tid;
 
 void main()
 {
-
     // Shared Memory
     key_t key = 1234;
 

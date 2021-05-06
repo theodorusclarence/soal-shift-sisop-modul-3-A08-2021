@@ -71,7 +71,6 @@ void multiplyMatrices(int first[][10],
          result[i][j] = 0;
       }
    }
-
    // Multiplying first and second matrices and storing it in result
    for (int i = 0; i < r1; ++i) {
       for (int j = 0; j < c2; ++j) {
