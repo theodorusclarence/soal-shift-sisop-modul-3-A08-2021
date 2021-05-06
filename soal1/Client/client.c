@@ -47,9 +47,9 @@ int main(int argc, char const *argv[]) {
   while (1) {
     char authMessage[1024] = {0};
     int valread;
-    printf("🚀 reading for authmessage \n");
+    printf("🚀🕓 reading for authmessage \n");
     valread = read(sock, authMessage, 1024);
-    printf("%s\n", authMessage);
+    printf("🚀 authMessage: %s\n", authMessage);
 
     if (strcmp(authMessage, "wait") != 0) {
       promptLogReg(sock);
@@ -91,11 +91,12 @@ void promptLogReg(int sock) {
   send(sock, pass, strlen(pass), 0);
 
   // AFTER SENDING ID AND PASSWORD, CHECK IF 1 THEN SUCCESSFULL
-  printf("🚀 reading for login reg message \n");
+  printf("🚀🕓 reading for logReg message \n");
   char logRegMsg[1024] = {0};
   int valread;
   valread = read(sock, logRegMsg, 1024);
-  printf("🚀 %s\n", logRegMsg);
+  printf("🚀 logRegMst: %s\n", logRegMsg);
+
   if (strcmp(logRegMsg, "1") == 0) {
     printf("Login Successful 🥳\n");
   } else if (strcmp(logRegMsg, "2") == 0) {
@@ -113,10 +114,11 @@ void promptLogReg(int sock) {
 void promptChoice(int sock) {
   char choice[120], id[100], pass[100];
   printf(
-      "\n=====\nChoose between [add, download, delete, see, find]\n* use full "
+      "\n=====\nChoose between [add, download, delete, see, find, stop]\n* use "
+      "full "
       "path for filepath in add\n> ");
   scanf("%s", choice);
-  // TODO REMOVE TEMPORARY STOP
+
   if (strcmp(choice, "stop") == 0) {
     send(sock, "stop", strlen("stop"), 0);
     exit(0);
@@ -172,7 +174,7 @@ void promptAdd(int sock) {
 
   sleep(1);
   send_file(fp, sock);
-  printf("[+]File data sent successfully.\n");
+  printf("🥳 File data sent successfully.\n");
 }
 
 void promptDownload(int sock) {
@@ -189,6 +191,7 @@ void promptDownload(int sock) {
   sprintf(fullPathFileName, "FILES/%s", filename);
 
   write_file(sock, fullPathFileName);
+  printf("🥳 File data downloaded successfully.\n");
 }
 
 void promptDelete(int sock) {
@@ -200,10 +203,14 @@ void promptDelete(int sock) {
   // avoid send being merged
   sleep(1);
   send(sock, filename, strlen(filename), 0);
+  printf("🥳 Deleted successfully.\n");
 }
 
 void promptSee(int sock) {
+  // TODO send see signal
   send(sock, "see", strlen("see"), 0);
+
+  // TODO get the message then print
   char buffer[100000] = {0};
   int valread;
   valread = read(sock, buffer, 1024);
@@ -212,6 +219,7 @@ void promptSee(int sock) {
 }
 
 void promptFind(int sock) {
+  // TODO send the find signal
   send(sock, "find", strlen("find"), 0);
 
   char filename[100];
@@ -221,10 +229,10 @@ void promptFind(int sock) {
   sleep(1);
   send(sock, filename, strlen(filename), 0);
 
+  // TODO Get the message from the server, then print
   char buffer[100000] = {0};
   int valread;
   valread = read(sock, buffer, 1024);
-  // Print result
   printf("%s\n", buffer);
 }
 
@@ -250,12 +258,11 @@ void write_file(int sockfd, char *filename) {
   FILE *fp;
   char buffer[1024];
 
-  printf("😅 %s\n", filename);
+  printf("🚀 [write_file()] File to download: %s\n", filename);
 
   fp = fopen(filename, "w");
   bzero(buffer, 1024);
   while (1) {
-    printf("🚀 waiting for receiving file\n");
     n = recv(sockfd, buffer, 1024, 0);
 
     // Kalo yang ngirim bukan dari send_file (karena dari function send_file

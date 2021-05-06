@@ -103,7 +103,9 @@ void *handleLogReg(void *args) {
 
   // TODO REMOVE TEMPORARY STOP
   if (strcmp(buffer, "stop") == 0) {
-    printf("😱masuk sini\n");
+    printf(
+        "🚀 [handleLogReg()] just got stop signal, proceeding "
+        "handleStopConnection()\n");
     handleStopConnection(new_socket);
   }
 
@@ -175,50 +177,52 @@ void handleSecondPhase(int sock, char *id, char *password) {
   int valread;
   char buffer[1024] = {0};
   valread = read(sock, buffer, 1024);
-  printf("%s\n", buffer);
+  printf("🚀 [handleSecondPhase()] first command: %s\n", buffer);
 
   // TODO REMOVE TEMPORARY STOP
   if (strcmp(buffer, "stop") == 0) {
-    printf("😱masuk sini\n");
+    printf(
+        "🚀 [handleSecondPhase()] just got stop signal, proceeding "
+        "handleStopConnection()\n");
     handleStopConnection(sock);
   }
 
   if (strcmp(buffer, "add") == 0) {
-    printf("masuk add\n");
-    printf("%s:%s\n", id, password);
+    printf("🚀 [handleSecondPhase()] add signal\n");
+    printf(
+        "🚀  [handleSecondPhase()] Preserve id:password for running.log%s:%s\n",
+        id, password);
 
-    // Valread file name dll
+    // TODO 1. Valread file name dll
     char publikasi[120] = {0};
     valread = read(sock, publikasi, 1024);
     char tahunPublikasi[120] = {0};
     valread = read(sock, tahunPublikasi, 1024);
     char filename[120] = {0};
     valread = read(sock, filename, 1024);
-    printf("👌: %s\n", publikasi);
-    printf("👌: %s\n", tahunPublikasi);
-    printf("👌: %s\n", filename);
 
-    // Write to files.tsv
+    // TODO 2. Write to files.tsv
     FILE *fp;
     fp = fopen("files.tsv", "a+");
     fprintf(fp, "%s\t%s\t%s\n", publikasi, tahunPublikasi, filename);
     fclose(fp);
 
-    // Write to running.log
+    // TODO 3. Write to running.log
     fp = fopen("running.log", "a+");
     // FILES/ get cut off
     char *filenameWithoutFolder = filename + 6;
     fprintf(fp, "Tambah: %s (%s:%s)\n", filenameWithoutFolder, id, password);
     fclose(fp);
 
+    // TODO 4. Write file yang dikirim by line oleh client
     write_file(sock, filename);
-    printf("[+]Data written in the file successfully.\n");
+    printf("🥳 Data written in the file successfully.\n");
   }
   if (strcmp(buffer, "delete") == 0) {
     // Get the filename
     char deleteFileName[120] = {0};
     valread = read(sock, deleteFileName, 1024);
-    printf("🚀%s\n", deleteFileName);
+    printf("🚀 [delete] deleteFileName: %s\n", deleteFileName);
 
     // TODO 1. Delete from the tsv file
     FILE *fp, *fp2;
@@ -271,19 +275,25 @@ void handleSecondPhase(int sock, char *id, char *password) {
     char data[1024] = {0};
     char publisher[100], tahunPublikasi[100], filename[100];
 
+    // To store full data that want to be sent
     char fullData[100000];
 
+    // TODO 1. Read line by line in files.tsv
     while (fgets(data, 1024, fp) != NULL) {
+      // Read data from tsv according to format
       sscanf(data, "%[^\t]\t%s\t%s", publisher, tahunPublikasi, filename);
       char line1[200], line2[200], line3[200], line4[200], line5[200];
+
       sprintf(line2, "Publisher: %s\n", publisher);
       sprintf(line3, "Tahun publishing: %s\n", tahunPublikasi);
       sprintf(line5, "Filepath : %s\n", filename);
 
+      // Get file extension (strrchr returns .txt, then add+1 to remove the .)
       char *ext = strrchr(filename, '.');
       char *extension = ext + 1;
       sprintf(line4, "Ekstensi File : %s\n", extension);
 
+      // get filename, then remove extension and path in front
       char fullPathWithoutExt[100];
       strcpy(fullPathWithoutExt, filename);
       char cleanName[100];
@@ -291,6 +301,7 @@ void handleSecondPhase(int sock, char *id, char *password) {
       sscanf(fullPathWithoutExt, "FILES/%s", cleanName);
       sprintf(line1, "Nama: %s\n", cleanName);
 
+      // TODO 2. Get the processed data to fullData
       strcat(fullData, line1);
       strcat(fullData, line2);
       strcat(fullData, line3);
@@ -299,6 +310,7 @@ void handleSecondPhase(int sock, char *id, char *password) {
       strcat(fullData, "\n");
     }
 
+    // TODO 3. Send the full data
     send(sock, fullData, strlen(fullData), 0);
   }
 
@@ -306,7 +318,7 @@ void handleSecondPhase(int sock, char *id, char *password) {
     // Get the filename
     char downloadFileName[120] = {0};
     valread = read(sock, downloadFileName, 1024);
-    printf("🚀%s\n", downloadFileName);
+    printf("🚀 [download] downloadFileName: %s\n", downloadFileName);
 
     char fullPathFileName[150];
     sprintf(fullPathFileName, "FILES/%s", downloadFileName);
@@ -314,14 +326,14 @@ void handleSecondPhase(int sock, char *id, char *password) {
     sleep(1);
     FILE *fp = fopen(fullPathFileName, "r");
     send_file(fp, sock);
-    printf("[+]File data sent successfully.\n");
+    printf("🥳 File data sent successfully.\n");
   }
 
   if (strcmp(buffer, "find") == 0) {
     // Get the filename
     char fileNameToFind[120] = {0};
     valread = read(sock, fileNameToFind, 1024);
-    printf("🚀%s\n", fileNameToFind);
+    printf("🚀[find] fileNameToFind: %s\n", fileNameToFind);
 
     FILE *fp;
     fp = fopen("files.tsv", "r+");
@@ -361,10 +373,12 @@ void handleSecondPhase(int sock, char *id, char *password) {
     if (strlen(fullData) == 0) {
       send(sock, "😢 no file found", strlen("😢 no file found"), 0);
     } else {
+      // If found, then return the fullData
       send(sock, fullData, strlen(fullData), 0);
     }
   }
-  // Infinite Looping for now
+
+  // If not the command above, then ask again
   handleSecondPhase(sock, id, password);
 }
 
@@ -399,12 +413,11 @@ void write_file(int sockfd, char *filename) {
   FILE *fp;
   char buffer[SIZE];
 
-  printf("😅 %s\n", filename);
+  printf("🚀 [write_file] File to be written in server: %s\n", filename);
 
   fp = fopen(filename, "w");
   bzero(buffer, SIZE);
   while (1) {
-    printf("🚀 waiting for receiving file\n");
     n = recv(sockfd, buffer, SIZE, 0);
 
     // Kalo yang ngirim bukan dari send_file (karena dari function send_file
