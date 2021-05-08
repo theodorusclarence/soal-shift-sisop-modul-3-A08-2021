@@ -19,14 +19,18 @@ int threadCount = 2;
 
 void moveFileUtil(char source[], char dest[]);
 char *cleanFolderFromPath(char str[]);
-void listFilesRecursively(char *basePath);
+void lisrecAlphaNum(char *basePath);
 char *getExt(char str[]);
 
 void *moveFile(void *arg) {
   char *fileName = (char *)arg;
-  printf("🚀 fileName: %s\n", fileName);
+  // printf("🚀 fileName: %s\n", fileName);
+
+  char fileAsli[1000];
+  strcpy(fileAsli, fileName);
+
   char *ext = getExt(fileName);
-  printf("🚀 ext: %s\n", ext);
+  // printf("🚀 ext: %s\n", ext);
 
   // TODO 1. Make appropriate directory
   char folderName[120];
@@ -44,11 +48,11 @@ void *moveFile(void *arg) {
   // TODO
   char destDir[200];
   sprintf(destDir, "%s/%s/%s", curDir, folderName,
-          cleanFolderFromPath(fileName));
-  printf("🚀 fileName: %s\n", fileName);
-  printf("🚀 destDir: %s\n", destDir);
+          cleanFolderFromPath(fileAsli));
+  // printf("🚀 fileAsli: %s\n", fileAsli);
+  // printf("🚀 destDir: %s\n", destDir);
 
-  moveFileUtil(fileName, destDir);
+  moveFileUtil(fileAsli, destDir);
   return NULL;
 }
 
@@ -72,51 +76,55 @@ int main(int argc, char **argv) {
 
     for (p = 0; p < (i - 1); p++) pthread_join(tid[p], NULL);
   } else if (strcmp(argv[1], "-d") == 0) {
-    listFilesRecursively(argv[2]);
+    lisrecAlphaNum(argv[2]);
   } else if (strcmp(argv[1], "*") == 0) {
-    listFilesRecursively(".");
+    lisrecAlphaNum(".");
   }
 
   return 0;
 }
 
-void listFilesRecursively(char *basePath) {
+void lisrecAlphaNum(char *basePath) {
   char path[1000], srcPathForThread[1000];
-  struct dirent *dp;
-  DIR *dir = opendir(basePath);
+  struct dirent **namelist;
+  int n;
+  int i = 0;
+  n = scandir(basePath, &namelist, NULL, alphasort);
+  if (n < 0)
+    return;
+  else {
+    while (i < n) {
+      if (strcmp(namelist[i]->d_name, ".") != 0 &&
+          strcmp(namelist[i]->d_name, "..") != 0) {
+        strcpy(path, basePath);
+        strcat(path, "/");
+        strcat(path, namelist[i]->d_name);
 
-  // Unable to open directory stream
-  if (!dir) return;
+        strcat(srcPathForThread, "/");
+        strcat(srcPathForThread, namelist[i]->d_name);
 
-  while ((dp = readdir(dir)) != NULL) {
-    if (strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0) {
-      // Construct new path from our base path
-      strcpy(path, basePath);
-      strcat(path, "/");
-      strcat(path, dp->d_name);
+        if (namelist[i]->d_type != DT_DIR) {
+          int err;
+          err = pthread_create(&(tid[threadCount - 2]), NULL, &moveFile,
+                               (void *)path);
 
-      strcat(srcPathForThread, "/");
-      strcat(srcPathForThread, dp->d_name);
+          if (err != 0)
+            printf("File %d: Sad, gagal :(\n", threadCount - 1);
+          else
+            printf("File %d : Berhasil Dikategorikan\n", threadCount - 1);
+          threadCount++;
 
-      if (dp->d_type != DT_DIR) {
-        int err;
-        err = pthread_create(&(tid[threadCount - 2]), NULL, &moveFile,
-                             (void *)path);
+          for (int p = 0; p < (threadCount - 1); p++)
+            pthread_join(tid[p], NULL);
+        }
 
-        if (err != 0)
-          printf("File %d: Sad, gagal :(\n", threadCount - 1);
-        else
-          printf("File %d : Berhasil Dikategorikan\n", threadCount - 1);
-        threadCount++;
-
-        for (int p = 0; p < (threadCount - 1); p++) pthread_join(tid[p], NULL);
+        lisrecAlphaNum(path);
       }
-
-      listFilesRecursively(path);
+      free(namelist[i]);
+      ++i;
     }
+    free(namelist);
   }
-
-  closedir(dir);
 }
 
 void moveFileUtil(char source[], char dest[]) {
