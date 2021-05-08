@@ -1,149 +1,176 @@
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
-#include <stdlib.h>
-#include <time.h>
-#include <wait.h>
-#include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
-#include<sys/types.h>
-#include<sys/stat.h>
-#include <syslog.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <dirent.h>
 #include <pthread.h>
-#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
-pthread_t tid[500]; //max 500 thread
-typedef struct arg_struct {
-    char asal[1000];
-    char cwd[1000];
-}arg_struct;
+pthread_t tid[100000];
+int curIndex;
+char *curDir;
+char tempWrkDir[10000];
+char formerDir[10000];
 
-int is_regular_file(const char *path) //jika 0 bukan file
-{
-    struct stat path_stat;
-    stat(path, &path_stat);
-    return S_ISREG(path_stat.st_mode);
+int threadCount = 2;
+
+void moveFileUtil(char source[], char dest[]);
+char *cleanFolderFromPath(char str[]);
+void listFilesRecursively(char *basePath);
+char *getExt(char str[]);
+
+void *moveFile(void *arg) {
+  char *fileName = (char *)arg;
+  printf("🚀 fileName: %s\n", fileName);
+  char *ext = getExt(fileName);
+  printf("🚀 ext: %s\n", ext);
+
+  // TODO 1. Make appropriate directory
+  char folderName[120];
+  if (ext == NULL) {
+    sprintf(folderName, "Unknown");
+  } else {
+    // TODO lowercase file ext (JPG => jpg)
+    for (int i = 0; ext[i]; i++) {
+      ext[i] = tolower(ext[i]);
+    }
+    sprintf(folderName, "%s", ext);
+  }
+  mkdir(folderName, 0777);
+
+  // TODO
+  char destDir[200];
+  sprintf(destDir, "%s/%s/%s", curDir, folderName,
+          cleanFolderFromPath(fileName));
+  printf("🚀 fileName: %s\n", fileName);
+  printf("🚀 destDir: %s\n", destDir);
+
+  moveFileUtil(fileName, destDir);
+  return NULL;
 }
 
-void pindahFile(char *argv, char *cwd){
-//   printf("stringvoid = %s\n", argv);
-//   printf("stringvoid = %s\n", cwd);
-  
-  char string[1000];
-  strcpy(string, argv);
-  int isFile = is_regular_file(string);
-  char dot = '.'; 
-  char slash = '/';
-  char* tipe = strrchr(string, dot); 
-  char* nama = strrchr(string, slash);
-  
-  char tipeLow[100];
-  if(tipe)
-  {
-    if(tipe[strlen(tipe)-1] >= '*' && tipe[strlen(tipe)-1] <= '~')
-    {
-      strcpy(tipeLow, tipe);
-      for(int i = 0; tipeLow[i]; i++){
-        tipeLow[i] = tolower(tipeLow[i]);
+int main(int argc, char **argv) {
+  char buf[1000];
+  curDir = getcwd(buf, 1000);
+
+  int i = 2, p;
+  int err;
+
+  if (strcmp(argv[1], "-f") == 0) {
+    // ? Incrementally check next argument
+    while (argv[i] != NULL) {
+      err = pthread_create(&(tid[i - 2]), NULL, &moveFile, (void *)argv[i]);
+      if (err != 0)
+        printf("File %d: Sad, gagal :(\n", i - 1);
+      else
+        printf("File %d : Berhasil Dikategorikan\n", i - 1);
+      i++;
+    }
+
+    for (p = 0; p < (i - 1); p++) pthread_join(tid[p], NULL);
+  } else if (strcmp(argv[1], "-d") == 0) {
+    listFilesRecursively(argv[2]);
+  } else if (strcmp(argv[1], "*") == 0) {
+    listFilesRecursively(".");
+  }
+
+  return 0;
+}
+
+void listFilesRecursively(char *basePath) {
+  char path[1000], srcPathForThread[1000];
+  struct dirent *dp;
+  DIR *dir = opendir(basePath);
+
+  // Unable to open directory stream
+  if (!dir) return;
+
+  while ((dp = readdir(dir)) != NULL) {
+    if (strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0) {
+      // Construct new path from our base path
+      strcpy(path, basePath);
+      strcat(path, "/");
+      strcat(path, dp->d_name);
+
+      strcat(srcPathForThread, "/");
+      strcat(srcPathForThread, dp->d_name);
+
+      if (dp->d_type != DT_DIR) {
+        int err;
+        err = pthread_create(&(tid[threadCount - 2]), NULL, &moveFile,
+                             (void *)path);
+
+        if (err != 0)
+          printf("File %d: Sad, gagal :(\n", threadCount - 1);
+        else
+          printf("File %d : Berhasil Dikategorikan\n", threadCount - 1);
+        threadCount++;
+
+        for (int p = 0; p < (threadCount - 1); p++) pthread_join(tid[p], NULL);
       }
+
+      listFilesRecursively(path);
     }
   }
-  else
-  {
-  strcpy(tipeLow, " Unknown"); //tanpa ekstensi
-  }
-    mkdir((tipeLow + 1), 0777); //bikin folder ekstensi
 
-    size_t len = 0 ;
-    // strcpy
-    char a[1000] ; //res
-    strcpy(a, argv);
-    char b[1000] ; //des
-    strcpy(b, cwd);
-    strcat(b, "/");
-    strcat(b, tipeLow+1);
-    strcat(b, nama);
-    rename(a, b);
-    remove(a);
+  closedir(dir);
 }
 
-void *pindahf(void* arg){
-  arg_struct args = *(arg_struct*) arg;
-//   printf("stringthr = %s\n", args.asal);
-  // printf("stringthr = %s\n", args.cwd);
-  pindahFile(args.asal, args.cwd);
-  pthread_exit(0);
+void moveFileUtil(char source[], char dest[]) {
+  int ch;
+  FILE *fp1, *fp2;
+
+  fp1 = fopen(source, "r");
+  fp2 = fopen(dest, "w");
+
+  if (!fp1) {
+    printf("Unable to open source file to read!!\n");
+    fclose(fp2);
+    return;
+  }
+
+  if (!fp2) {
+    printf("Unable to open target file to write\n");
+    return;
+  }
+
+  while ((ch = fgetc(fp1)) != EOF) {
+    fputc(ch, fp2);
+  }
+
+  fclose(fp1);
+  fclose(fp2);
+
+  // printf("%s\n", source);
+  // printf("%s\n", dest);
+
+  remove(source);
+  return;
 }
 
-void sortHere(char *asal){
-  arg_struct args;
-  // args.cwd = "/home/yusuf/soal-shift-sisop-modul-3-A08-2021/soal3";
-  strcpy(args.cwd,"/home/yusuf/soal-shift-sisop-modul-3-A08-2021/soal3");
-  DIR *dirp;
-    struct dirent *entry;
-    dirp = opendir(asal);
-    int index = 0;
-    while((entry = readdir(dirp)) != NULL)
-    {
-      if(entry->d_type == DT_REG)
-      {
-        char namafile[105];
-        sprintf(namafile, "%s/%s", asal, entry->d_name);
-        strcpy(args.asal, namafile);
-        if(strcmp(namafile, "/home/yusuf/soal-shift-sisop-modul-3-A08-2021/soal3/soal3.c")!=0)
-        {
-            pthread_create(&tid[index], NULL, pindahf, (void *)&args);
-            sleep(1);
-            index++; 
-        }
-      }
-    }
+char *cleanFolderFromPath(char str[]) {
+  char *pch;
+  char *result;
+  pch = strchr(str, '/');
+  if (pch == NULL) return str;
+  while (pch != NULL) {
+    result = pch + 1;
+    pch = strchr(pch + 1, '/');
+  }
+  return result;
 }
-int main(int argc, char* argv[]) 
-{ 
 
-  // char cwd[1000];
-  arg_struct args;
-  getcwd(args.cwd, sizeof(args.cwd));
-
-  
-  if(strcmp(argv[1],"-f")==0)
-  {
-    int index = 0;
-    for (int i = 2; i < argc; i++)
-    {
-      strcpy(args.asal, argv[i]);
-      pthread_create(&tid[index], NULL, pindahf, (void *)&args);
-      index++;
-      printf("File %d : Berhasil Dikategorikan\n",index);
-    }
-    for (int i = 0; i < index; i++) {
-        pthread_join(tid[i], NULL);
-    }
+char *getExt(char str[]) {
+  char *pch = cleanFolderFromPath(str);
+  // get first occurence of .
+  char *result = strchr(pch, '.');
+  if (result == NULL) {
+    return NULL;
+  } else {
+    // remove the . (.txt => txt)
+    return (result + 1);
   }
-  else if(strcmp(argv[1],"*")==0)
-  {
-    char asal[] = "/home/yusuf/soal-shift-sisop-modul-3-A08-2021/soal3";
-    
-    sortHere(asal);
-  }
-  else if(strcmp(argv[1],"-d")==0){
-      char asal[1000];
-      strcpy(asal, argv[2]);
-      sortHere(asal);
-    //   rename(asal, args.cwd);
-    //   sortHere(asal);
-    printf("Direktori sukses disimpan!\n");
-  }
-  else
-  {
-      printf("MAAF SALAH\n");
-      return 0;
-  }
-  
-	return 0; 
-} 
+}
