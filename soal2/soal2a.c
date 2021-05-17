@@ -20,21 +20,27 @@ int main() {
     
     // Multiply Matrices
     int r1, c1, r2, c2;
+    int first[10][10];
+    int second[10][10];
    
     r1 = 4;
     c1 = 3;
     r2 = 3;
     c2 = 6;
 
-    int first[10][10] = {{2, 3, 1},
-                        {1, 3, 2},
-                        {2, 3, 3},
-                        {2, 3, 1}
-                        };
-    int second[10][10] = {{2, 1, 2, 3, 3, 1},
-                            {4, 2, 4, 3, 2, 2},
-                            {1, 1, 1, 2, 2, 2}
-                            };
+   printf("Input matrix 4x3\n");
+   for(int i = 0; i < r1; i++) {
+      for(int j = 0; j < c1; j++) {
+         scanf("%d", &first[i][j]);
+      }
+   }
+
+   printf("Input matrix 3x6\n");
+   for(int i = 0; i < r2; i++) {
+      for(int j = 0; j < c2; j++) {
+         scanf("%d", &second[i][j]);
+      }
+   }
 
    // Taking input until
    // 1st matrix columns is not equal to 2nd matrix row
@@ -52,7 +58,7 @@ int main() {
 
     sleep(5);
     printf("\nNungguin ya?\n\n");
-    sleep(5);
+    sleep(20);
     shmdt(result);
     shmctl(shmid, IPC_RMID, NULL);
 

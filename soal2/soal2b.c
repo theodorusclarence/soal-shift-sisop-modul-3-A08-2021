@@ -8,84 +8,107 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 
-void display(int result[][10], int row, int column);
-void display_llu(unsigned long long result[][10], int row, int column);
-void* process(void *arg);
+typedef struct {
+    long long *newVal;
+    int matA;
+    int matB;
+}Args;
+void display(int mat[][10], int row, int column);
+void display_lld(long long mat[][10], int row, int column);
+void* process(void *argument);
+Args *createArgs(long long *nv, int a, int b);
 unsigned long long faktorial(int num);
-int base[10][10] = {{7, 8, 4, 9, 12, 20},
-                       {5, 8, 9, 11, 15, 10},
-                       {9, 7, 8, 10, 6, 16},
-                       {6, 5, 12, 14, 6, 11}
-                      };
-unsigned long long new[10][10] = {{0, 0, 0, 0, 0, 0},
-                    {0, 0, 0, 0, 0, 0},
-                    {0, 0, 0, 0, 0, 0},
-                    {0, 0, 0, 0, 0, 0}
-                    };
-int (*result)[10];
-pthread_t tid;
 
 void main()
 {
     // Shared Memory
     key_t key = 1234;
+    int base[10][10];
+    int (*result)[10];
+    long long new[10][10];
+
+    pthread_t tid[4][6];
 
     int shmid = shmget(key, sizeof(int[10][10]), IPC_CREAT | 0666);
     result = shmat(shmid, NULL, 0);
 
     // Debugging
+    printf("-=- Matrix A -=-\n");
     display(result, 4, 6);
-    
-    int c = 0, err; 
-    err=pthread_create(&tid,NULL,&process, NULL); //membuat thread
-    if(err!=0) //cek error
-    {
-        printf("\n can't create thread : [%s]",strerror(err));
-    }
-    else
-    {
-        printf("\n create thread success\n");
-    }
-    pthread_join(tid, NULL);
-    
 
-    display_llu(new, 4, 6);
+    printf("Input matrix B 4x6\n");
+    for(int i = 0; i < 4; i++) {
+        for(int j = 0; j < 6; j++) {
+            scanf("%d", &base[i][j]);
+        }
+    }
+    
+    printf("\n-=- Matrix B -=-\n");
+    display(result, 4, 6);
+
+    for(int i = 0; i < 4; i++) {
+        for(int j = 0; j < 6; j++) {
+            
+            int c = 0, err;
+            //membuat thread
+            err=pthread_create(&tid[i][j],
+                                NULL,
+                                process, 
+                                (void *)createArgs(&(new[i][j]),
+                                                    result[i][j],
+                                                    base[i][j]
+                                )
+                              ); 
+            if(err!=0) //cek error
+            {
+                printf("\n can't create thread : [%s]",strerror(err));
+            }
+            else
+            {
+                printf("\n create thread success\n");
+            }
+        }
+    }
+
+    printf("-=- Matrix C -=-\n");
+    for(int i = 0; i < 4; i++) {
+        for(int j = 0; j < 6; j++) {
+            pthread_join(tid[i][j], NULL);
+        }
+    }    
+
+    display_lld(new, 4, 6);
     
     shmdt(result);
     shmctl(shmid, IPC_RMID, NULL);
 }
 
-void* process(void *arg) {
-    // display(result, 4, 6);
-    // display(base, 4, 6);
-    // display(new, 4, 6);
-    for (int i = 0; i < 4; i++)
-    {
-        for (int j = 0; j < 6; j++)
-        {   
-            if(result[i][j] == 0 | base[i][j] == 0) new[i][j] = 0;
-            else if(result[i][j] < base[i][j]) new[i][j] = faktorial(result[i][j]);
-            else new[i][j] = (faktorial(result[i][j]) / faktorial(result[i][j]-base[i][j]));
-            printf("\n%d-%d=%llu", result[i][j], base[i][j], new[i][j]);
-        }
-        
-    }
-    // display(new, 4, 6);
+Args *createArgs(long long *nv, int a, int b) {
+    Args *arg = malloc(sizeof(Args));
+
+    arg->newVal = nv;
+    arg->matA = a;
+    arg->matB = b;
+
+    return arg;
+}
+
+void* process(void *argument) {
+    Args *arg = (Args *)argument;
+
+    if(arg->matA == 0 | arg->matB == 0) *(arg->newVal) = 0;
+    else if(arg->matA < arg->matB) *(arg->newVal) = faktorial(arg->matA);
+    else *(arg->newVal) = (faktorial(arg->matA) / faktorial(arg->matA - arg->matB));
+    
 }
 
 unsigned long long faktorial(int num) {
     unsigned long long temp = 1;
     printf("\n\n");
     for(int i = 1; i <= num; i++) {
-        printf("%llu->", temp);
         temp *= i;
     }
-    // while(num > 0) {
-    //     printf("%d->", temp);
-    //     temp *= num;
-    //     num--;
-    // }
-    printf("(%llu)", temp);
+    
     return temp;
 }
 
@@ -103,12 +126,12 @@ void display(int m[][10], int row, int column) {
 }
 
 // function to display the matrix
-void display_llu(unsigned long long m[][10], int row, int column) {
+void display_lld(long long m[][10], int row, int column) {
 
    printf("\nOutput Matrix:\n");
    for (int i = 0; i < row; ++i) {
       for (int j = 0; j < column; ++j) {
-         printf("%llu  ", m[i][j]);
+         printf("%lld  ", m[i][j]);
          if (j == column - 1)
             printf("\n");
       }
