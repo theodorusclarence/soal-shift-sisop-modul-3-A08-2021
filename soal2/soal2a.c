@@ -11,7 +11,7 @@ void multiplyMatrices(int first[][10],
 void display(int result[][10], int row, int column);
 
 int main() {
-    // Shared Memory
+   // Shared Memory
     key_t key = 1234;
     int (*result)[10];
 

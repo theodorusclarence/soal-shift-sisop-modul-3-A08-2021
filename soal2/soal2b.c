@@ -94,6 +94,7 @@ Args *createArgs(long long *nv, int a, int b) {
 }
 
 void* process(void *argument) {
+    
     Args *arg = (Args *)argument;
 
     if(arg->matA == 0 | arg->matB == 0) *(arg->newVal) = 0;
