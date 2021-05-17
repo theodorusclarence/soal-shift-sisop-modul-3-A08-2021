@@ -26,15 +26,20 @@ void *moveFile(void *arg) {
   char *fileName = (char *)arg;
   // printf("🚀 fileName: %s\n", fileName);
 
-  char fileAsli[1000];
+  char fileAsli[1000], fileCopy[1000];
   strcpy(fileAsli, fileName);
+  strcpy(fileCopy, fileName);
 
   char *ext = getExt(fileName);
-  // printf("🚀 ext: %s\n", ext);
+  char *cleanName = cleanFolderFromPath(fileCopy);
 
   // TODO 1. Make appropriate directory
   char folderName[120];
-  if (ext == NULL) {
+  // printf("🚀 cleanName: %s\n", cleanName);
+
+  if (cleanName[0] == '.') {
+    sprintf(folderName, "Hidden");
+  } else if (ext == NULL) {
     sprintf(folderName, "Unknown");
   } else {
     // TODO lowercase file ext (JPG => jpg)
