@@ -1028,6 +1028,192 @@ if (child_id == 0) {
 ![soal2c_2](./screenshots/2c_2.png)
 ---
 # Soal 3
+Pada soal ini ada 3 command yang dapat dijalankan. yaitu `-f`,`-d`, dan `x`. Dalam soal ini menggunakan beberapa fungsi yaitu  `moveFile` , `moveFileUtil` , `cleanFolderFromPath` , `getExt` ,  `lisrecAlphaNum`.
+
+## Command -f
+Pada command `-f` yaitu bertujuan untuk membuat kategori pada file yang dipilih setelah command tersebut dengan memasukkan file tersebut ke folder baru yang dikelompokkan berdasarkan extensi seperti : `zip`,`txt`, dan lain-lain. Pada saat proses berlangsung, file yang dilakukan pengkategorian dilakukan secara paralel menggunakan thread sehingga setiap file akan berjalan bersamaan
+```
+while (argv[i] != NULL) {
+      err = pthread_create(&(tid[i - 2]), NULL, &moveFile, (void *)argv[i]);
+      if (err != 0)
+        printf("File %d: Sad, gagal :(\n", i - 1);
+      else
+        printf("File %d : Berhasil Dikategorikan\n", i - 1);
+      i++;
+    }
+```
+Jika berhasil dalam proses tersebut, pesan yang akan keluar berupa `Berhasil Dikategorikan`. Jika file tersebut gagal dalam prosesnya maka pesan berupa `Sad, gagal :(`. Dalam prosesnya kita dapat melakukan pengkategorian lebih dari satu file pada command ini.
+Sebagai contoh: 
+```
+./soal3 -f soal3/soal3kkk/ahsduas-ahsduas.zip soal3/soal3kkk/bs.TXT
+```
+Pada command ini kita melakukan pengkategorian pada 2 file. dalam proses pengkategorian ada beberapa fungsi yang digunakan. untuk mendapat extensi dari file tersebut kita menggunakan fungsi `getExt` dan `cleanFolderFromPath`
+```
+char *cleanFolderFromPath(char str[]) {
+  char *pch;
+  char *result;
+  pch = strchr(str, '/');
+  if (pch == NULL) return str;
+  while (pch != NULL) {
+    result = pch + 1;
+    pch = strchr(pch + 1, '/');
+  }
+  return result;
+}
+```
+Pada fungsi diatas kita mengambil filename saja dengan menggunakan command `strchr(str, '/')` sehingga yang terdapat pada format path dengan hanya mengambil kalimat setelah `/` yang terakhir 
+```
+while (pch != NULL) {
+    result = pch + 1;
+    pch = strchr(pch + 1, '/');
+  }
+```
+kita mendapat filenamenya beserta extensinya. Selanjutnya menggunakan fungsi `getExt` 
+```
+
+char *getExt(char str[]) {
+  char *pch = cleanFolderFromPath(str);
+  // get first occurence of .
+  char *result = strchr(pch, '.');
+  if (result == NULL) {
+    return NULL;
+  } else {
+    // remove the . (.txt => txt)
+    return (result + 1);
+  }
+}
+```
+pada fungsi ini kita akan mengeliminasi yang bukan extensi nya dengan menggunakan command `strchr(pch, '.')` tetapi pada fungsi ini kita mengambil `.` yang pertama untuk diambil katanya sehingga tidak perlu dilakukan looping seperti fungsi `cleanFolderFromPath`. Pada command `-f` kita menggunakan fungsi `movefile`.
+```
+char *fileName = (char *)arg;
+  char fileAsli[1000], fileCopy[1000];
+  strcpy(fileAsli, fileName);
+  strcpy(fileCopy, fileName);
+
+  char *ext = getExt(fileName);
+  char *cleanName = cleanFolderFromPath(fileCopy);
+```
+Pada fungsi ini kita melakukan store extensi file tersebut menggunakan fungsi `getExt` ke variabel `ext` dan filename dengan fungsi `cleanFolderFromPath` ke variabel `cleanName`.
+```
+ char folderName[120];
+  // printf("🚀 cleanName: %s\n", cleanName);
+
+  if (cleanName[0] == '.') {
+    sprintf(folderName, "Hidden");
+  } else if (ext == NULL) {
+    sprintf(folderName, "Unknown");
+  }
+```
+Jika file tersebut merupakan Hidden file maka folderName berisi Hidden dengan melakukan check `if (cleanName[0] == '.')` pada awalan dari file name tersebut. Sedangkan apabila file tersebut tidak memiliki extensi maka akan folderName akan berisi Unknown. Dan untuk yang memiliki extensi akan dijadikan huruf kecil semua karena perintah soal tidak case sensitive.
+```
+else {
+    // TODO lowercase file ext (JPG => jpg)
+    for (int i = 0; ext[i]; i++) {
+      ext[i] = tolower(ext[i]);
+    }
+    sprintf(folderName, "%s", ext);
+  }
+```
+yaitu dengan menggunakan fungsi `tolower(ext[i])` kita mendapat filename berupa huruf kecil semua dan di store ke `folderName`. lalu folder baru akan dibuat dengan fungsi `mkdir(folderName, 0777);`. untuk melakukan move file tersebut ke folder yang baru maka dilakukan
+```
+char destDir[200];
+  sprintf(destDir, "%s/%s/%s", curDir, folderName,cleanFolderFromPath(fileAsli));
+  moveFileUtil(fileAsli, destDir);
+  return NULL;
+```
+pada awal akan dibuat file difolder baru tersebut yang formatnya terdapat pada variabel `destDir` yang berupa gabungan `curDir, folderName,cleanFolderFromPath(fileAsli)` dan setelah itu dilakukan penyalinan dengan fungsi `(fileAsli, destDir)`.
+```
+FILE *fp1, *fp2;
+
+  fp1 = fopen(source, "r");
+  fp2 = fopen(dest, "w");
+```
+pada fungsi ini kita melakukan read pada source yang berisi `fileAsli` dan melakukan write pada file `destDir` yang baru. setelah proses selesai maka file source akan dihapus dengan command `remove(source);`. Hasil dari command `-f` dapat dilihat pada screenshot berikut:
+
+### Hasil
+![soal3_-f_1](./screenshots/3_-f_1.png)
+
+![soal3_-f_2](./screenshots/3_-f_2.png)
+
+## Command -d
+Pada command ini yaitu melakukan pengkategorian pada semua file yang kita pilih foldernya disaat melakukan command. Pada command ini kita hanya bisa melakukan proses tersebut pada satu folder saja. Folder hasil pengkategorian akan berada pada folder soal3 sama seperti command lain. sebagai contoh: `./soal3 -d soal3/soal3kkk`
+pada command ini kita menggunakan command `if (strcmp(argv[1], "-d") == 0) {lisrecAlphaNum(argv[2]);}`. sehingga kita menggunakan fungsi `lisrecAlphaNum`.
+```
+void lisrecAlphaNum(char *basePath) {
+  char path[1000], srcPathForThread[1000];
+  struct dirent **namelist;
+  int n;
+  int i = 0;
+  n = scandir(basePath, &namelist, NULL, alphasort);
+```
+pada fungsi ini kita melakukan scan berapa banyak file yang terdapat pada folder terpilih. dengan command `n = scandir(basePath, &namelist, NULL, alphasort)`. alphasort disini bertujuan untuk melakukan sort berdasarkan aplhabeth sehingga dapat menghindari kegagalan disaat ada namafile yang sama dengan extensi dari file lain yaitu dengan melakukan proses pada file tersebut dan masuk ke folder `Unknown` sehingga apabila ada file yang memiliki extensi yang sama dengan file sebelumnya, folder extensi dapat terbuat.
+```
+if (n < 0)
+    return;
+  else {
+    while (i < n) {
+      if (strcmp(namelist[i]->d_name, ".") != 0 &&
+          strcmp(namelist[i]->d_name, "..") != 0) {
+        strcpy(path, basePath);
+        strcat(path, "/");
+        strcat(path, namelist[i]->d_name);
+```
+pada proses ini kita akan mengeliminasi `. ..` yang terdapat pada saat melakukan scan. dan pada variabel path kita mengisi dengan basepath(folder yang kita gunakan pada saat command `-d`) dan menambah `/` serta filename yang sebelumnya kita store di `struct dirent **namelist`. kemudian untuk variabel `srcPathForThread` kita isi hanya dengan `/` dan filename pada namelist.
+```
+f (namelist[i]->d_type != DT_DIR) {
+          int err;
+          err = pthread_create(&(tid[threadCount - 2]), NULL, &moveFile,
+                               (void *)path);
+```
+pada saat melakukan scan kita tidak membedakan antara direktori atau file sehingga kita melakukan if jika bukan direktori/folder maka kita lakukan command `err = pthread_create(&(tid[threadCount - 2]), NULL, &moveFile,(void *)path)`yang dimana prosesnya sama pada `command -f`.
+```
+ if (err != 0)
+            printf("File %d: Sad, gagal :(\n", threadCount - 1);
+          else
+            printf("File %d : Berhasil Dikategorikan\n", threadCount - 1);
+          threadCount++;
+
+          for (int p = 0; p < (threadCount - 1); p++)
+            pthread_join(tid[p], NULL);
+```
+jika file tersebut berhasil maka pesan berupa `File %d : Berhasil Dikategorikan` ,`%d` disini merupakan urutan sorting file saat proses berlangsung. dan jika gagal, pesan berupa `File %d: Sad, gagal :(`. untuk setiap file akan diberi satu thread sehingga pada saat proses berlangsung tidak perlu menunggu file sebelumnya selesai diproses.
+```
+ lisrecAlphaNum(path);
+```
+jika file yang kita scan merupakan direktori maka kita akan menjadikan variabel `path` tersebut menjadi `basepath` sehingga kita dapat melakukan rekursi pada subdirektori yang terdapat pada folder yang kita pilih. dan jika file tersebut merupakan file berekstensi maka akan tetap masuk ke fungsi `lisrecAlphaNum(path)` tetapi lansung dicegah saat
+```
+ if (n < 0)
+    return;
+```
+karena pada saat scan akan gagal sehingga n<0.
+```
+}
+      free(namelist[i]);
+      ++i;
+    }
+    free(namelist);
+  }
+```
+dan kita mengosongkan `namelist[i]` serta struct `namelist` agar dapat dilakukan proses selanjutnya tanpa ada gangguan. Hasil dari command `./soal3 -d soal3/soal3kkk` dapat dilihat pada screenshot berikut:
+
+### Hasil
+![soal3_-f_2](./screenshots/3_-d.png)
+
+## Command *
+pada command ini prosesnya hampir identik dengan command `-d` hanya pada saat command basepath nya berupa current directori yang merupakan folder soal3 sehingga semua file yang ada pada soal3 akan dilakukan pengkategorian. Command nya berupa `./soal3 \*` . 
+```
+if (strcmp(argv[1], "*") == 0) {
+    lisrecAlphaNum(".");
+```
+pada fungsi ini kita mengisi `basepath` pada fungsi `lisrecAlphaNum` berupa curent directori yaitu dengan `"."`. sehingga pada saat fungsi `lisrecAlphaNum` semua file yang terdapat pada folder soal3 akan dikategorikan semuanya. Hasil dari command tersebut dapat dilihat sebagai berikut:
+
+### Hasil
+![soal3_-f_2](./screenshots/3_*.png)
+ 
+Dari hasil tersebut terlihat bahwa pada folder soal3 semua file nya berhasil dikategorikan sehingga semua file masuk ke folder berdasarkan kategori masing masing
+
+### Kendala
+1. untuk melakukan kategori file yang ekstensinya sama dengan dengan filename tidak, proses pengkategorian gagal dikarenakan folder tidak dapat dibuat dengan nama yang sama dengan file yang ada di folder tersebut. sehingga dibutuhkan metode aplhabeth sorting
 
 ## Referensi
 
