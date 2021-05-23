@@ -61,11 +61,11 @@ void main()
                               ); 
             if(err!=0) //cek error
             {
-                printf("\n can't create thread : [%s]",strerror(err));
+                // printf("\n can't create thread : [%s]",strerror(err));
             }
             else
             {
-                printf("\n create thread success\n");
+                // printf("\n create thread success\n");
             }
         }
     }

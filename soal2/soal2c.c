@@ -40,12 +40,9 @@ int main() {
     // this is parent
     while ((wait(&status)) > 0)
       ;
-<<<<<<< HEAD
-=======
     // Close write pipe1
     close(fp1[1]);
 
->>>>>>> b31164103ecfb873f3ed14ce59d99f65c2178c16
     child_id = fork();
     if (child_id < 0) {
       exit(EXIT_FAILURE);

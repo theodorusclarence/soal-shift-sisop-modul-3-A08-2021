@@ -788,6 +788,169 @@ fclose(fp);
 
 --- 
 
+# Soal 2
+
+Pada soal kita diminta untuk melakukan perkalian matriks, mengirimkan nilai ke program/proses lain, dan melihat 5 proses teratas yang sedang berjalan 
+
+## Soal 2a
+Pada soal ini kita akan melakukan 2 hal, yaitu perhitungan perkalian matriks dan pengiriman nilai (server)
+### Perhitungan nilai matriks
+1. Melakukan input nilai 2 matriks
+```c
+printf("Input matrix 4x3\n");
+for(int i = 0; i < r1; i++) {
+  for(int j = 0; j < c1; j++) {
+      scanf("%d", &first[i][j]);
+  }
+}
+
+printf("Input matrix 3x6\n");
+for(int i = 0; i < r2; i++) {
+  for(int j = 0; j < c2; j++) {
+      scanf("%d", &second[i][j]);
+  }
+}
+```
+2. Melakukan pemanggilan fungsi `multiplyMatrices()`
+```c
+multiplyMatrices(first, second, result, r1, c1, r2, c2);
+```
+3. Didalam fungsi tersebut, akan dilakukan perkalian matriks `first` dengan `second` dengan hasil disimpan di `result`
+```c
+// Initializing elements of matrix mult to 0.
+for (int i = 0; i < r1; ++i) {
+  for (int j = 0; j < c2; ++j) {
+      result[i][j] = 0;
+  }
+}
+// Multiplying first and second matrices and storing it in result
+for (int i = 0; i < r1; ++i) {
+  for (int j = 0; j < c2; ++j) {
+      for (int k = 0; k < c1; ++k) {
+        result[i][j] += first[i][k] * second[k][j];
+      }
+  }
+}
+```
+#### Hasil
+![soal2a_1](./screenshots/2a_1.png)
+
+### Pengiriman Nilai
+1. Pada pengiriman nilai, kita gunakan share memory. Melakukan inisiasi `key`, `shmid`, dan variabel `result` sebagai variabel yang akan dikirim nilainya
+```c
+key_t key = 1234;
+
+int shmid = shmget(key, sizeof(int[10][10]), IPC_CREAT | 0666);
+result = shmat(shmid, NULL, 0);
+```
+2. Dilakukan `sleep(25)` untuk memberi waktu pemanggilan dari client proses.
+3. Bila sudah selesai, dilakukan penutupan share memory
+```c
+shmdt(result);
+shmctl(shmid, IPC_RMID, NULL);
+```
+
+## Soal 2b
+Pada tahap ini akan melakukan penerimaan nilai dan perhitungan matriks berdasarkan peraturan yang ada
+1. Melakukan penerimaan nilai variabel result dari server proses
+```c
+key_t key = 1234;
+int shmid = shmget(key, sizeof(int[10][10]), IPC_CREAT | 0666);
+result = shmat(shmid, NULL, 0);
+```
+![soal2b_1](./screenshots/2b_1.png)
+
+Pada tahap selanjutnya adalah melakukan perhitungan nilai permutasi antar nilai dari matriks `result` pada matriks baru `base` pada indeks/cell yang sama. Perhitungan pada tiap cell harus menggunakan 1 thread sendiri.
+2. Melakukan pemasukan nilai matriks `base`
+```c
+printf("Input matrix B 4x6\n");
+for(int i = 0; i < 4; i++) {
+    for(int j = 0; j < 6; j++) {
+        scanf("%d", &base[i][j]);
+    }
+}
+```
+3. Melakukan inisiasi tid dengan size sama dengan jumlah cell
+```c
+pthread_t tid[4][6];
+```
+4. Memanggil thread untuk perhitungan tiap cell nya
+```c
+for(int i = 0; i < 4; i++) {
+  for(int j = 0; j < 6; j++) {
+      
+      int c = 0, err;
+      //membuat thread
+      err=pthread_create(&tid[i][j],
+                          NULL,
+                          process, 
+                          (void *)createArgs(&(new[i][j]),
+                                              result[i][j],
+                                              base[i][j]
+                          )
+                        ); 
+      if(err!=0) //cek error
+      {
+          printf("\n can't create thread : [%s]",strerror(err));
+      }
+      else
+      {
+          printf("\n create thread success\n");
+      }
+  }
+}
+```
+5. Function `createArgs` adalah fungsi untuk menghasilkan variabel bertipe data struct `Args`. Tipe data ini memiliki atribut `newVal` bertipe `long long` untuk menyimpan nilai hasil permutasi, lalu ada 2 atribut `matA` dan `matB` untuk menyimpan nilai cell kedua matriks
+```c
+typedef struct {
+    long long *newVal;
+    int matA;
+    int matB;
+}Args;
+```
+```c
+Args *createArgs(long long *nv, int a, int b) {
+    Args *arg = malloc(sizeof(Args));
+
+    arg->newVal = nv;
+    arg->matA = a;
+    arg->matB = b;
+
+    return arg;
+}
+```
+6. Pada function `process`, kita memproses perhitungan matriks, yaitu menghitung permutasinya. Function `faktorial` adalah sebuah fungsi untuk menghitung nilai faktorial dari argument. \
+```c
+void* process(void *argument) {
+  Args *arg = (Args *)argument;
+
+  if(arg->matA == 0 | arg->matB == 0) *(arg->newVal) = 0;
+  else if(arg->matA < arg->matB) *(arg->newVal) = faktorial(arg->matA);
+  else *(arg->newVal) = (faktorial(arg->matA) / faktorial(arg->matA - arg->matB));
+}
+```
+7. Lalu terakhir melakukan join thread dengan `pthread_join` untuk tiap cell, pencetaakn matriks hasil perhitungna, serta penutupan share memory
+
+```c
+printf("-=- Matrix C -=-\n");
+for(int i = 0; i < 4; i++) {
+    for(int j = 0; j < 6; j++) {
+        pthread_join(tid[i][j], NULL);
+    }
+}    
+
+display_lld(new, 4, 6);
+
+shmdt(result);
+shmctl(shmid, IPC_RMID, NULL);
+```
+
+#### Hasil
+![soal2b_2](./screenshots/2b_2.png)
+![soal2b_3](./screenshots/2b_3.png)
+
+## Soal 2c
+
 ## Referensi
 
 ### 1
