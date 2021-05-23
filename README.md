@@ -950,6 +950,82 @@ shmctl(shmid, IPC_RMID, NULL);
 ![soal2b_3](./screenshots/2b_3.png)
 
 ## Soal 2c
+Pada soal ini kita diminta untuk mengecek 5 proses teratas dengan command `ps aux | sort -nrk 3,3 | head -5` pada program C
+1. Karena terdapat 3 command, maka kita lakukan pemanggilan 2 pipe untuk komunikasi squential
+```c
+if (pipe(fp1) == -1) {
+  fprintf(stderr, "Pipe Failed");
+  return 1;
+}
+
+if (pipe(fp2) == -1) {
+  fprintf(stderr, "Pipe Failed");
+  return 1;
+}
+```
+2. Mengeksekusi command pertama dengan cara memanggil child process serta menutup pipe `fp1[0]` dan menduplikasi output ke pipe `fp1[1]`. Selanjutnya mengeksekusi command.
+```c
+if (child_id == 0) {
+  // nutup read
+  close(fp1[0]);
+
+  // duplicate write ke terminal
+  dup2(fp1[1], STDOUT_FILENO);
+
+  // exec ls
+  char *argv[] = {"ps", "aux", NULL};
+  execv("/bin/ps", argv);
+}
+```
+3. Selanjutnya pada parent process akan dilakukan pengeksekusian command lainnya dengan pendekatan yang sama pada nomor 2. Namun sebelum itu menutup dulu pipe `fp[1]`
+```c
+// Close write pipe1
+close(fp1[1]);
+```
+#### Kendala
+Awalnya kami tidak berhasil mengeksekusi program ini, terutama pada command terakhir `sort nrk 3,3`. Namun setelah menutup pipe `fp1[1]` tersebut, kami berhasil mengeksekusi program sesuai yang diminta
+![soal2c_1](./screenshots/2c_1.png)
+
+Memanggil child process. Pada child proses melakukan menutup pipe write `fp1[1]` agar selesai menulis serta menduplikasi input ke pipe `fp1[0]`, dan menutup pipe read `fp2[0]` serta menduplikasi output pipe write `fp2[1]`. Lalu diakhiri dengan pengeksekusian `sort nrk 3,3`.
+
+Selanjutnya pada parent process, sama halnya dengan sebelumnya, yaitu menutup dahulu pipe write `fp2[1]` serta menduplikasi output ke `fp2[0]`.
+
+```c
+child_id = fork();
+if (child_id < 0) {
+  exit(EXIT_FAILURE);
+}
+if (child_id == 0) {
+  // close write pipe1
+  close(fp1[1]);
+
+  // duplicate read
+  dup2(fp1[0], STDIN_FILENO);
+
+  // close read
+  close(fp2[0]);
+
+  // duplicate write ke termin
+  dup2(fp2[1], STDOUT_FILENO);
+
+  // exec
+  char *argv[] = {"sort", "-nrk", "3,3", NULL};
+  execv("/usr/bin/sort", argv);
+} else {
+  while ((wait(&status)) > 0)
+    ;
+  // close write
+  close(fp2[1]);
+
+  // dup read ke stdin
+
+  dup2(fp2[0], STDIN_FILENO);
+
+  char *argv[] = {"head", "-5", NULL};
+  execv("/usr/bin/head", argv);
+}
+```
+![soal2c_2](./screenshots/2c_2.png)
 
 ## Referensi
 
@@ -958,5 +1034,7 @@ shmctl(shmid, IPC_RMID, NULL);
 - https://stackoverflow.com/questions/3889992/how-does-strtok-split-the-string-into-tokens-in-c
 
 ### 2
+- 
+- https://stackoverflow.com/questions/32284887/stuck-on-using-multiple-pipes-in-c
 
 ### 3
