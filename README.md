@@ -1026,6 +1026,8 @@ if (child_id == 0) {
 }
 ```
 ![soal2c_2](./screenshots/2c_2.png)
+---
+# Soal 3
 
 ## Referensi
 
@@ -1034,7 +1036,6 @@ if (child_id == 0) {
 - https://stackoverflow.com/questions/3889992/how-does-strtok-split-the-string-into-tokens-in-c
 
 ### 2
-- 
 - https://stackoverflow.com/questions/32284887/stuck-on-using-multiple-pipes-in-c
 
 ### 3
